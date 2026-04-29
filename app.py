@@ -5,7 +5,7 @@ from flask import Flask, render_template, request
 from google import genai
 
 # Initializing the Gemini API client with your API key
-Client = genai.Client(api_key="AIzaSyB0ZkW1U5ZY2Csv1trG-X_IBZE87elLDDY")
+Client = genai.Client(api_key="")
 
 # Creating the Flask application
 app = Flask(__name__)

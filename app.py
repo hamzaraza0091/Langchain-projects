@@ -1,74 +1,69 @@
-# Importing required modules from Flask
-from flask import Flask, render_template, request
+import streamlit as st
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_core.prompts import ChatPromptTemplate
 
-# Importing Google Generative AI client
-from google import genai
+# -----------------------------
+# DIRECT API KEY (IN CODE)
+# -----------------------------
+GOOGLE_API_KEY = ""
 
-# Initializing the Gemini API client with your API key
-Client = genai.Client(api_key="")
+# -----------------------------
+# UI
+# -----------------------------
+st.set_page_config(page_title="AI Study Planner", page_icon="📚")
 
-# Creating the Flask application
-app = Flask(__name__)
+st.title("📚 AI Study Planner")
 
-# Function to generate interview question + answer using Gemini
-def generate_question(role, qtype):
+subject = st.text_input("What do you want to study?")
+hours_per_day = st.number_input("Hours per day", 1, 16, 3)
+days = st.number_input("Number of days", 1, 365, 7)
 
-    # Prompt sent to the AI model
-    prompt = f"""Generate interview questions with answers according to job role and question type.As your are an AI interview practice tool
-    Role:{role}
-    Question_type : {qtype}
-    Formate your response EXACTLY like this:
-    Question: <your question>
-    Answer: <your answer> """  
+generate = st.button("Generate Plan")
 
-    # Sending the prompt to Gemini model
-    response = Client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt
-    )
+# -----------------------------
+# LLM
+# -----------------------------
+llm = ChatGoogleGenerativeAI(
+    model="gemini-2.0-flash-lite",
+    temperature=0.7,
+    google_api_key=GOOGLE_API_KEY
+)
 
-    # Extracting the text response
-    text = response.text
+# -----------------------------
+# PROMPT (LCEL STYLE)
+# -----------------------------
+prompt = ChatPromptTemplate.from_template("""
+You are an expert study planner.
 
-    # Variables to store extracted question and answer
-    question = ""
-    answer = ""
+Create a structured study plan.
 
-    # Splitting the response into lines to find Question/Answer
-    lines = text.split("\n")
-    for line in lines:
-        if line.startswith("Question"):
-            # Removing "Question:" and cleaning spaces
-            question = line.replace("Question:", "").strip()
-        elif line.startswith("Answer"):
-            # Removing "Answer:" and cleaning spaces
-            answer = line.replace("Answer:", "").strip()
+Subject: {subject}
+Hours per day: {hours}
+Days: {days}
 
-    # Returning extracted values
-    return question, answer
+Rules:
+- Break into daily schedule
+- Include revision days
+- Include practice tasks
+- Keep it realistic
+- Use bullet points
+""")
 
+chain = prompt | llm
 
-# Route for GET request → loads the page initially
-@app.route("/", methods=['GET'])
-def home():
-    # Passing empty question/answer on first load
-    return render_template("index.html", question="", answer="")
+# -----------------------------
+# RUN
+# -----------------------------
+if generate:
+    if not subject:
+        st.warning("Type a subject first.")
+    else:
+        with st.spinner("Generating plan... pretending to be productive 🤖"):
+            result = chain.invoke({
+                "subject": subject,
+                "hours": hours_per_day,
+                "days": days
+            })
 
-
-# Route for POST request → triggered when form is submitted
-@app.route("/", methods=['POST'])
-def submit():
-    # Getting selected role and question type from form
-    role = request.form.get("role")
-    qtype = request.form.get("qtype")
-
-    # Calling the AI generator function
-    question, answer = generate_question(role, qtype)
-
-    # Rendering the page again with generated Q/A
-    return render_template("index.html", question=question, answer=answer)
-
-
-# Running the Flask app in debug mode
-if __name__ == "__main__":
-    app.run(debug=True)
+        st.subheader("Your Study Plan")
+        st.markdown(result.content)

@@ -1,0 +1,74 @@
+from dotenv import load_dotenv
+load_dotenv()
+
+import streamlit as st
+from langchain_google_genai import ChatGoogleGenerativeAI
+
+# Initialize LLM
+llm = ChatGoogleGenerativeAI(
+    model="gemini-2.5-flash",
+    temperature=0.7
+)
+
+# Page Configuration
+st.set_page_config(
+    page_title="Python AI Assistant",
+    page_icon="🐍",
+    layout="centered"
+)
+
+st.title("🐍 Python AI Assistant")
+st.markdown("**Ask me anything about Python** — I'm your friendly Python teacher!")
+
+# Sidebar
+with st.sidebar:
+    st.header("📚 About this Assistant")
+    st.write("Powered by Gemini 2.5 Flash")
+    st.markdown("""
+    You can ask me about:
+    - Python Basics
+    - OOP (Classes, Inheritance, etc.)
+    - Data Structures & Algorithms
+    - Pandas, NumPy, Matplotlib
+    - Debugging & Best Practices
+    """)
+
+# Clear Chat Button
+if st.button("🧹 Clear Chat"):
+    st.session_state.messages = []
+    st.rerun()
+
+# Initialize chat history
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+# Display previous messages
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+
+# User Input
+if query := st.chat_input("Ask me anything about Python..."):
+    
+    # Display user message
+    st.session_state.messages.append({"role": "user", "content": query})
+    with st.chat_message("user"):
+        st.markdown(query)
+
+    # AI Response with Spinner
+    with st.chat_message("assistant"):
+        with st.spinner("🤖 Thinking..."):
+            # System Prompt (Python Teacher)
+            prompt = f"""You are an expert, friendly, and patient Python programming teacher.
+            Explain concepts clearly with good examples.
+            Answer in a helpful and educational way.
+
+            User question: {query}"""
+            
+            response = llm.invoke(prompt)
+            answer = response.content
+
+        st.markdown(answer)
+    
+    # Save AI response to history
+    st.session_state.messages.append({"role": "assistant", "content": answer})

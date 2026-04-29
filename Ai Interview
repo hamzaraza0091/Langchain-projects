@@ -1,1 +1,74 @@
+# Importing required modules from Flask
+from flask import Flask, render_template, request
 
+# Importing Google Generative AI client
+from google import genai
+
+# Initializing the Gemini API client with your API key
+Client = genai.Client(api_key="")
+
+# Creating the Flask application
+app = Flask(__name__)
+
+# Function to generate interview question + answer using Gemini
+def generate_question(role, qtype):
+
+    # Prompt sent to the AI model
+    prompt = f"""Generate interview questions with answers according to job role and question type.As your are an AI interview practice tool
+    Role:{role}
+    Question_type : {qtype}
+    Formate your response EXACTLY like this:
+    Question: <your question>
+    Answer: <your answer> """  
+
+    # Sending the prompt to Gemini model
+    response = Client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt
+    )
+
+    # Extracting the text response
+    text = response.text
+
+    # Variables to store extracted question and answer
+    question = ""
+    answer = ""
+
+    # Splitting the response into lines to find Question/Answer
+    lines = text.split("\n")
+    for line in lines:
+        if line.startswith("Question"):
+            # Removing "Question:" and cleaning spaces
+            question = line.replace("Question:", "").strip()
+        elif line.startswith("Answer"):
+            # Removing "Answer:" and cleaning spaces
+            answer = line.replace("Answer:", "").strip()
+
+    # Returning extracted values
+    return question, answer
+
+
+# Route for GET request → loads the page initially
+@app.route("/", methods=['GET'])
+def home():
+    # Passing empty question/answer on first load
+    return render_template("index.html", question="", answer="")
+
+
+# Route for POST request → triggered when form is submitted
+@app.route("/", methods=['POST'])
+def submit():
+    # Getting selected role and question type from form
+    role = request.form.get("role")
+    qtype = request.form.get("qtype")
+
+    # Calling the AI generator function
+    question, answer = generate_question(role, qtype)
+
+    # Rendering the page again with generated Q/A
+    return render_template("index.html", question=question, answer=answer)
+
+
+# Running the Flask app in debug mode
+if __name__ == "__main__":
+    app.run(debug=True)

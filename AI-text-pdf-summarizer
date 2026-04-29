@@ -1,0 +1,87 @@
+from dotenv import load_dotenv
+load_dotenv()
+
+import streamlit as st
+from langchain_google_genai import ChatGoogleGenerativeAI
+import PyPDF2
+
+# 🔹 Load AI Model
+llm = ChatGoogleGenerativeAI(
+    model="gemini-2.5-flash"
+)
+
+# 🔹 Page Config
+st.set_page_config(page_title="AI Text Summarizer", page_icon="🧠", layout="wide")
+
+# 🔹 Title
+st.title(" AI Text Summarizer")
+st.markdown("Summarize Text or PDF using Generative AI ")
+
+# 🔹 Sidebar Options
+st.sidebar.header("⚙️ Settings")
+
+summary_length = st.sidebar.selectbox(
+    "Select Summary Length",
+    ["Short", "Medium", "Long"]
+)
+
+language = st.sidebar.selectbox(
+    "Select Language",
+    ["English", "Urdu"]
+)
+
+# 🔹 Input Method
+option = st.radio("Choose Input Type:", ["Text", "PDF"])
+
+text_input = ""
+
+# 🔹 Text Input
+if option == "Text":
+    text_input = st.text_area("Enter your text here:")
+
+# 🔹 PDF Upload
+elif option == "PDF":
+    uploaded_file = st.file_uploader("Upload a PDF", type=["pdf"])
+    
+    if uploaded_file is not None:
+        pdf_reader = PyPDF2.PdfReader(uploaded_file)
+        text = ""
+        
+        for page in pdf_reader.pages:
+            text += page.extract_text()
+        
+        text_input = text
+
+# 🔹 Generate Prompt
+def create_prompt(text, length, lang):
+    
+    length_map = {
+        "Short": "in 2-3 sentences",
+        "Medium": "in 4-6 sentences",
+        "Long": "in 8-10 sentences"
+    }
+    
+    prompt = f"""
+    Summarize the following text {length_map[length]} in {lang}.
+    Make it simple and easy to understand.
+
+    TEXT:
+    {text}
+    """
+    
+    return prompt
+
+# 🔹 Button
+if st.button(" Generate Summary"):
+    
+    if text_input.strip() == "":
+        st.warning("Please enter text or upload PDF!")
+    
+    else:
+        with st.spinner("Generating summary..."):
+            
+            prompt = create_prompt(text_input, summary_length, language)
+            response = llm.invoke(prompt)
+            
+            st.subheader(" Summary:")
+            st.write(response.content)
